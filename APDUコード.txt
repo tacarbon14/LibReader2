@@ -1,0 +1,121 @@
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+
+// 2024/12/2 ChatGPTが生成したライブラリ不要のコード
+
+class Program
+{
+    // 定数定義
+    private const uint SCARD_SCOPE_USER = 0;             // スコープ: ユーザー
+    private const uint SCARD_SHARE_SHARED = 2;          // 共有モード
+    private const uint SCARD_PROTOCOL_T0 = 1;           // プロトコルT0
+    private const uint SCARD_PROTOCOL_T1 = 2;           // プロトコルT1
+
+    [DllImport("winscard.dll")]
+    private static extern int SCardEstablishContext(uint dwScope, IntPtr pvReserved1, IntPtr pvReserved2, out IntPtr phContext);
+
+    [DllImport("winscard.dll")]
+    private static extern int SCardListReaders(IntPtr hContext, string mszGroups, byte[] mszReaders, ref int pcchReaders);
+
+    [DllImport("winscard.dll")]
+    private static extern int SCardConnect(IntPtr hContext, string szReader, uint dwShareMode, uint dwPreferredProtocols, out IntPtr phCard, out IntPtr pdwActiveProtocol);
+
+    [DllImport("winscard.dll")]
+    private static extern int SCardTransmit(IntPtr hCard, ref SCARD_IO_REQUEST pioSendPci, byte[] pbSendBuffer, int cbSendLength, ref SCARD_IO_REQUEST pioRecvPci, byte[] pbRecvBuffer, ref int pcbRecvLength);
+
+    [DllImport("winscard.dll")]
+    private static extern int SCardDisconnect(IntPtr hCard, int dwDisposition);
+
+    [DllImport("winscard.dll")]
+    private static extern int SCardReleaseContext(IntPtr hContext);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct SCARD_IO_REQUEST
+    {
+        public uint dwProtocol;  // プロトコル (T0/T1)
+        public uint cbPciLength; // PCI構造体のサイズ
+    }
+
+    static void Main(string[] args)
+    {
+        IntPtr hContext = IntPtr.Zero;
+        IntPtr hCard = IntPtr.Zero;
+        IntPtr activeProtocol = IntPtr.Zero;
+
+        try
+        {
+            // コンテキストを作成
+            int result = SCardEstablishContext(SCARD_SCOPE_USER, IntPtr.Zero, IntPtr.Zero, out hContext);
+            if (result != 0)
+            {
+                throw new Exception($"Failed to establish context: {result}");
+            }
+
+            // 利用可能なリーダーを取得
+            byte[] readersBuffer = new byte[2048];
+            int readersBufferLength = readersBuffer.Length;
+            result = SCardListReaders(hContext, null, readersBuffer, ref readersBufferLength);
+            if (result != 0)
+            {
+                throw new Exception($"Failed to list readers: {result}");
+            }
+
+            // リーダー名を取得（最初のリーダーを使用）
+            string readerName = Encoding.ASCII.GetString(readersBuffer, 0, readersBufferLength).Split('\0')[0];
+            Console.WriteLine("Using reader: " + readerName);
+
+            // カードに接続
+            result = SCardConnect(hContext, readerName, SCARD_SHARE_SHARED, SCARD_PROTOCOL_T0 | SCARD_PROTOCOL_T1, out hCard, out activeProtocol);
+            if (result != 0)
+            {
+                throw new Exception($"Failed to connect to card: {result}");
+            }
+
+            // APDUコマンド送信: SELECT AP (例: 00 A4 04 0C 0D ここにAP名)
+            byte[] selectAPDU = { 0x00, 0xA4, 0x04, 0x0C, 0x0D, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30 }; // AP名は例
+            byte[] responseBuffer = new byte[256];
+            int responseLength = responseBuffer.Length;
+
+            SCARD_IO_REQUEST ioRequest = new SCARD_IO_REQUEST
+            {
+                dwProtocol = (uint)activeProtocol,
+                cbPciLength = (uint)Marshal.SizeOf(typeof(SCARD_IO_REQUEST))
+            };
+
+            result = SCardTransmit(hCard, ref ioRequest, selectAPDU, selectAPDU.Length, ref ioRequest, responseBuffer, ref responseLength);
+            if (result != 0)
+            {
+                throw new Exception($"Failed to send SELECT APDU: {result}");
+            }
+            Console.WriteLine("SELECT APDU Response: " + BitConverter.ToString(responseBuffer, 0, responseLength));
+
+            // APDUコマンド送信: GET DATA (例: 00 CA 66 00 00)
+            byte[] getDataAPDU = { 0x00, 0xCA, 0x66, 0x00, 0x00 }; // GET DATAコマンド
+            responseLength = responseBuffer.Length;
+
+            result = SCardTransmit(hCard, ref ioRequest, getDataAPDU, getDataAPDU.Length, ref ioRequest, responseBuffer, ref responseLength);
+            if (result != 0)
+            {
+                throw new Exception($"Failed to send GET DATA APDU: {result}");
+            }
+            Console.WriteLine("GET DATA Response: " + BitConverter.ToString(responseBuffer, 0, responseLength));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error: " + ex.Message);
+        }
+        finally
+        {
+            // リソース解放
+            if (hCard != IntPtr.Zero)
+            {
+                SCardDisconnect(hCard, 0);
+            }
+            if (hContext != IntPtr.Zero)
+            {
+                SCardReleaseContext(hContext);
+            }
+        }
+    }
+}

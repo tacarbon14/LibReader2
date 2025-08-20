@@ -1,0 +1,40 @@
+private void buttonX1_Click(object sender, RoutedEventArgs e)
+{
+    try
+    {
+        // SFカードとの通信準備
+        var reader = new JPKIReaderLib.JPKIReader();
+
+        // APDU: Select AP (例: 00 04 0C 0D ...)
+        byte[] selectAPCommand = new byte[] { 0x00, 0x04, 0x0C, 0x0D, /* 続くデータ */ };
+        var selectResponse = reader.Transmit(selectAPCommand);
+
+        // レスポンスが正常か確認 (例: SW=90 00)
+        if (selectResponse.Length < 2 || selectResponse[^2] != 0x90 || selectResponse[^1] != 0x00)
+        {
+            MessageBox.Show("Select AP failed!");
+            return;
+        }
+
+        // APDU: Get Data (例: 00 CA 66 00)
+        byte[] getDataCommand = new byte[] { 0x00, 0xCA, 0x66, 0x00 };
+        var getDataResponse = reader.Transmit(getDataCommand);
+
+        // データを確認し表示
+        if (getDataResponse.Length >= 2 && getDataResponse[^2] == 0x90 && getDataResponse[^1] == 0x00)
+        {
+            // 正常応答時のデータ部分を取得
+            byte[] responseData = getDataResponse.Take(getDataResponse.Length - 2).ToArray();
+            string hexString = BitConverter.ToString(responseData).Replace("-", " ");
+            MessageBox.Show($"0x66 Value: {hexString}");
+        }
+        else
+        {
+            MessageBox.Show("Get Data failed!");
+        }
+    }
+    catch (Exception ex)
+    {
+        MessageBox.Show($"Error: {ex.Message}");
+    }
+}
