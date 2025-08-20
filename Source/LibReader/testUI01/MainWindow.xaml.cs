@@ -225,11 +225,8 @@ namespace LibReader
             IntPtr hContext = IntPtr.Zero;
             IntPtr hCard = IntPtr.Zero;
             IntPtr activeProtocol = IntPtr.Zero;
-            String TatenaNo = "";
+            //String TatenaNo = "";
             LJyotai.Visibility = Visibility.Hidden;
-
-            //各テキストボックス初期化処理
- 
 
 #if DEBUG_MODE
             //DebugModeの時
@@ -316,8 +313,6 @@ namespace LibReader
                 if (responseLength > 2)
                 {
 
-                //●●●このあたり、要確認 2025/8/12
-
                     // 末尾の2バイト (SW1, SW2) を除外し、データ部分を抽出
                     byte[] data = new byte[responseLength - 2];
                     byte[] RID = new byte[13];
@@ -329,13 +324,12 @@ namespace LibReader
                     Array.Copy(responseBuffer, 0, data, 0, responseLength - 2);
                     Array.Copy(responseBuffer, 2, RID, 0, 13);
                     Array.Copy(responseBuffer, 17, UIDdata, 0, 20); //上位2文字を無視TLV2のヘッダ)
-                    Array.Copy(responseBuffer, 28, AtenaNo, 0, 9); //下位9文字のみ複写
+                    //Array.Copy(responseBuffer, 28, AtenaNo, 0, 9); //下位9文字のみ複写
 
                     byte[] cleanData2 = UIDdata.Where(b => b != 0x00).ToArray();
-                    String TNAtenaNo = AtenaDec(Encoding.ASCII.GetString(cleanData2)); //AtenaNoを整形
-                    //AtenaNoから、8文字切り出し→符号化前のLibID
+                    String TNAtenaNo = AtenaDec(Encoding.ASCII.GetString(cleanData2)); //UIDをデコード・整形
+                    //UID(宛名番号)から、8文字切り出し→符号化前のLibID
                     String LibID = TNAtenaNo.Length >= 8 ? TNAtenaNo.Substring(TNAtenaNo.Length - 8, 8) : TNAtenaNo;
-                    //string NAtenaNo = Encoding.ASCII.GetString(cleanData2);
                     LibID = LibIDEnc(LibID); //LibIDに符号化を施す
                     LibID = "15217" + LibID;    //J-LIS標準ID化
 
@@ -351,10 +345,8 @@ namespace LibReader
                     // NULL終端文字を削除
                     byte[] cleanData1 = RID.Where(b => b != 0x00).ToArray();
                     TBRID.Text = Encoding.ASCII.GetString(cleanData1);
-                    TatenaNo = Encoding.ASCII.GetString(cleanData1);
+                    //TatenaNo = Encoding.ASCII.GetString(cleanData1);
                     //TBMyKeyIDText.Text = BitConverter.ToString(data);
-//                    Clipboard.SetText(Encoding.ASCII.GetString(RID)); 
-                    Clipboard.SetText(LibID);   // クリップボードへLibIDをコピー
 
                     if (LibID == LastLibID)
                     {
@@ -362,7 +354,9 @@ namespace LibReader
                     }
                     else
                     { 
-                        SendKeysToApp(LibID);   //親プロセスにLibID(符号化後)を戻す
+                        SendKeysToApp(LibID);   //フォアグラウンドプロセスにLibID(符号化後)を戻す
+                        //Clipboard.SetText(Encoding.ASCII.GetString(RID)); 
+                        Clipboard.SetText(LibID);   // クリップボードへLibIDをコピー
                         LastLibID = LibID;
                     }
 
