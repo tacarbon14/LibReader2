@@ -15,7 +15,7 @@
         <Label x:Name="Lavel3" Content="※クリップードコピーされます" HorizontalAlignment="Left" Margin="188,163,0,0" VerticalAlignment="Top"/>
         <Button x:Name="buttonMuID" Content="カードAP読出(_N)" HorizontalAlignment="Left" Height="40" Margin="25,93,0,0" VerticalAlignment="Top" Width="144" Click="buttonMuID_Click" Visibility="Hidden"/>
         <Label x:Name="LJyotai" Content="登録あり" HorizontalAlignment="Left" Margin="10,222,0,0" VerticalAlignment="Top" FontSize="24" Visibility="Hidden"/>
-        <Label x:Name="Lavel3コピー__C_" Content="ポーリング版 2025/08/20" HorizontalAlignment="Left" Margin="451,14,0,0" VerticalAlignment="Top"/>
+        <Label x:Name="Lavel3コピー__C_" Content="SendInput/ポーリング版 2025/09/18" HorizontalAlignment="Left" Margin="393,59,0,0" VerticalAlignment="Top"/>
 
     </Grid>
 </Window>

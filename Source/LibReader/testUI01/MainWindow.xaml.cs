@@ -120,39 +120,119 @@ namespace LibReader
         [DllImport("user32.dll")]
         static extern IntPtr GetForegroundWindow();
 
-   //     [DllImport("user32.dll", SetLastError = true)]
-  //      static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+//        [DllImport("user32.dll", SetLastError = true)]
+//          static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
-        const uint INPUT_KEYBOARD = 1;
-        const uint KEYEVENTF_KEYUP = 0x0002;
-
-        private const int KEYEVENTF_KEYDOWN = 0x0;          // キーを押す
-        private const int KEYEVENTF_EXTENDEDKEY = 0x1;      // 拡張コード
-        private const int VK_SHIFT = 0x10;                  // SHIFTキー 
+ //       const uint INPUT_KEYBOARD = 1;
+ //       const uint KEYEVENTF_KEYUP = 0x0002;
+ //       const uint KEYEVENTF_SCANCODE = 0x0008;
+ //       private const int KEYEVENTF_KEYDOWN = 0x0;          // キーを押す
+ //       private const int KEYEVENTF_EXTENDEDKEY = 0x1;      // 拡張コード
+ //       private const int VK_SHIFT = 0x10;                  // SHIFTキー
+ //       private const uint MAPVK_VK_TO_VSC = 0;             //
         private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
-        [StructLayout(LayoutKind.Sequential)]
-        struct INPUT
-        {
-            public uint type;
-            public InputUnion u;
-        }
+//        [StructLayout(LayoutKind.Sequential)]
+//        struct INPUT
+//        {
+//            public uint type;
+//            public InputUnion u;
+//        }
 
+  //      [StructLayout(LayoutKind.Explicit)]
+ //       struct InputUnion
+  //      {
+  //          [FieldOffset(0)] public KEYBDINPUT ki;
+  //      }
+
+ //       [StructLayout(LayoutKind.Sequential)]
+ //       struct KEYBDINPUT
+ //       {
+ //           public ushort wVk;
+ //           public ushort wScan;
+ //           public uint dwFlags;
+ //           public uint time;
+ //           public IntPtr dwExtraInfo;
+ //       }
+
+        //新キーボード関係
+        // マウスイベント(mouse_eventの引数と同様のデータ)
+        [StructLayout(LayoutKind.Sequential)]
+        private struct MOUSEINPUT
+        {
+            public int dx;
+            public int dy;
+            public int mouseData;
+            public int dwFlags;
+            public int time;
+            public int dwExtraInfo;
+        };
+
+        // キーボードイベント(keybd_eventの引数と同様のデータ)
+        [StructLayout(LayoutKind.Sequential)]
+        private struct KEYBDINPUT
+        {
+            public short wVk;
+            public short wScan;
+            public int dwFlags;
+            public int time;
+            public int dwExtraInfo;
+        };
+
+        // ハードウェアイベント
+        [StructLayout(LayoutKind.Sequential)]
+        private struct HARDWAREINPUT
+        {
+            public int uMsg;
+            public short wParamL;
+            public short wParamH;
+        };
+
+        // 各種イベント(SendInputの引数データ)
         [StructLayout(LayoutKind.Explicit)]
-        struct InputUnion
+        private struct INPUT
         {
-            [FieldOffset(0)] public KEYBDINPUT ki;
-        }
+            [FieldOffset(0)] public int type;
+            [FieldOffset(4)] public MOUSEINPUT mi;
+            [FieldOffset(4)] public KEYBDINPUT ki;
+            [FieldOffset(4)] public HARDWAREINPUT hi;
+        };
 
-        [StructLayout(LayoutKind.Sequential)]
-        struct KEYBDINPUT
-        {
-            public ushort wVk;
-            public ushort wScan;
-            public uint dwFlags;
-            public uint time;
-            public IntPtr dwExtraInfo;
-        }
+        // キー操作、マウス操作をシミュレート(擬似的に操作する)
+        [DllImport("user32.dll")]
+        private extern static void SendInput(
+            int nInputs, ref INPUT pInputs, int cbsize);
+
+        // 仮想キーコードをスキャンコードに変換
+        [DllImport("user32.dll", EntryPoint = "MapVirtualKeyA")]
+        private extern static int MapVirtualKey(
+            int wCode, int wMapType);
+
+        private const int INPUT_MOUSE = 0;                  // マウスイベント
+        private const int INPUT_KEYBOARD = 1;               // キーボードイベント
+        private const int INPUT_HARDWARE = 2;               // ハードウェアイベント
+
+        private const int MOUSEEVENTF_MOVE = 0x1;           // マウスを移動する
+        private const int MOUSEEVENTF_ABSOLUTE = 0x8000;    // 絶対座標指定
+        private const int MOUSEEVENTF_LEFTDOWN = 0x2;       // 左　ボタンを押す
+        private const int MOUSEEVENTF_LEFTUP = 0x4;         // 左　ボタンを離す
+        private const int MOUSEEVENTF_RIGHTDOWN = 0x8;      // 右　ボタンを押す
+        private const int MOUSEEVENTF_RIGHTUP = 0x10;       // 右　ボタンを離す
+        private const int MOUSEEVENTF_MIDDLEDOWN = 0x20;    // 中央ボタンを押す
+        private const int MOUSEEVENTF_MIDDLEUP = 0x40;      // 中央ボタンを離す
+        private const int MOUSEEVENTF_WHEEL = 0x800;        // ホイールを回転する
+        private const int WHEEL_DELTA = 120;                // ホイール回転値
+
+        private const int KEYEVENTF_KEYDOWN = 0x0;          // キーを押す
+        private const int KEYEVENTF_KEYUP = 0x2;            // キーを離す
+        private const int KEYEVENTF_EXTENDEDKEY = 0x1;      // 拡張コード
+        private const int VK_SHIFT = 0x10;                  // SHIFTキー
+        private const int KEYEVENTF_SCANCODE = 0x08;     //Scancode
+
+        //WaitTime
+        private const int WAITTIME = 100;                    //SendInput待ち時間
+
+
 
         //重複送信防止用
         private static string LastLibID = "";
@@ -360,12 +440,6 @@ namespace LibReader
                         LastLibID = LibID;
                     }
 
-                    //// 例: 必要に応じて整数として処理
-                    //if (data.Length >= 1)
-                    //{
-                    //    int value = data[0]; // 先頭バイトを整数値として扱う例
-                    //    Console.WriteLine("First byte as integer: " + value);
-                    //}
                 }
                 else
                 {
@@ -466,9 +540,12 @@ namespace LibReader
             //SetForegroundWindow(hWnd);
             //Thread.Sleep(100); // フォーカス移動を確実にするために少し待つ '遅い原因
             //SendKeys.SendWait(text);
-            //SendTextWithSendInput(hWnd,text);
+            SendTextWithSendInput(hWnd,text);
 
-            SendTextWithPostMessage(hWnd,text);
+            //SendTextWithPostMessage(hWnd,text);
+            //PostMessage(hWnd, 0x0100, 0x0D, 0);//CRを押下
+            //PostMessage(hWnd, 0x0101, 0x0D, 0);//CRアップ
+
 
         }
 
@@ -477,39 +554,74 @@ namespace LibReader
         {
             //うまく動作しないため、いったん保留(この関数は使っていない)
             SetForegroundWindow(hWnd);
-            Thread.Sleep(2000);
+            Thread.Sleep(500);
 
             foreach (char c in text)
             {
                 short vKey = VkKeyScan(c);
+                //ushort scanCode = (ushort)MapVirtualKey((ushort)(vKey & 0xFF), 0);
                 if (vKey == -1) continue; // 変換失敗時はスキップ
-
                 INPUT[] inputs = new INPUT[2];
 
-                // キーダウン
-                inputs[0].type = 1; // Keyboard
-                inputs[0].u.ki.wVk = (ushort)Keys.A;
-                inputs[0].u.ki.wScan = (ushort)MapVirtualKey(inputs[0].u.ki.wVk, 0);  // 仮想キーコードを使う場合はスキャンコードを設定しない
-                inputs[0].u.ki.dwFlags = KEYEVENTF_KEYDOWN;  // 押下
-                inputs[0].u.ki.dwExtraInfo = (IntPtr)0;
-                inputs[0].u.ki.time = 0;
+                // キーボード(c)を押す
+                inputs[0].type = INPUT_KEYBOARD;
+                //inputs[0].ki.wVk = (short)(vKey & 0xFF);
+                inputs[0].ki.wVk = 0;
+                inputs[0].ki.wScan = (short)MapVirtualKey((vKey & 0xff), 0);
+                //inputs[0].ki.wScan = 0x02;
+                inputs[0].ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYDOWN;
+                inputs[0].ki.dwExtraInfo = 0;
+                inputs[0].ki.time = 0;
 
-                // キーアップ
-                inputs[1].type = 1; // Keyboard
-                inputs[1].u.ki.wVk = (ushort)Keys.A;
-                inputs[1].u.ki.wScan = (ushort)MapVirtualKey(inputs[1].u.ki.wVk, 0);
-                inputs[1].u.ki.dwFlags = KEYEVENTF_KEYUP;  // 放す
-                inputs[1].u.ki.dwExtraInfo = (IntPtr)0;
-                inputs[1].u.ki.time = 0;
+                // キーボード(c)を離す
+                inputs[1].type = INPUT_KEYBOARD;
+                //inputs[1].ki.wVk = (short)(vKey & 0xFF);
+                inputs[1].ki.wVk = 0;
+                inputs[1].ki.wScan = (short)MapVirtualKey((vKey & 0xFF), 0);
+                //inputs[1].ki.wScan = 0x02;
+                inputs[1].ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
+                inputs[1].ki.dwExtraInfo = 0;
+                inputs[1].ki.time = 0;
 
-                // SendInput を実行し、成功した回数を取得
-                uint result = SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(INPUT)));
-                //uint result = SendInput((uint)2, inputs, Marshal.SizeOf(inputs[0]));
+                short rKey = (short)MapVirtualKey((vKey & 0xFF),0);
+                // 送信
+                uint result = SendInput(2, inputs.ToArray(), Marshal.SizeOf(typeof(INPUT)));
+                //Console.WriteLine($"送信: {c} (VK={vKey}), SendInput結果: {result}");
+                Console.WriteLine($"送信: {c} (RK={rKey}), (VK={vKey}), SendInput結果: {result}");
 
-                Console.WriteLine($"送信: {c} (VK={vKey & 0xFF}), SendInput結果: {result}");
-
-                Thread.Sleep(100);
+                Thread.Sleep(WAITTIME);
             }
+            SendEnter();    //最後にEnter
+
+        }
+
+        // CR (Enter) を SendInput で送る
+        static void SendEnter()
+        {
+            // ---- 最後に Enter ----
+            ushort vkEnter = 0x0D; // VK_RETURN
+            ushort scanEnter = (ushort)MapVirtualKey(vkEnter, 0);
+
+            INPUT[] enterInputs = new INPUT[2];
+
+            // KeyDown
+            enterInputs[0].type = 1; // INPUT_KEYBOARD
+            enterInputs[0].ki.wVk = (short)vkEnter;
+            enterInputs[0].ki.wScan = (short)scanEnter;
+            enterInputs[0].ki.dwFlags = KEYEVENTF_EXTENDEDKEY; // スキャンコード指定
+            enterInputs[0].ki.time = 0;
+            enterInputs[0].ki.dwExtraInfo = 0;
+
+            // KeyUp
+            enterInputs[1].type = 1; // INPUT_KEYBOARD
+            enterInputs[1].ki.wVk = (short)vkEnter;
+            enterInputs[1].ki.wScan = (short)scanEnter;
+            enterInputs[1].ki.dwFlags = KEYEVENTF_EXTENDEDKEY| KEYEVENTF_KEYUP;
+            enterInputs[1].ki.time = 0;
+            enterInputs[1].ki.dwExtraInfo = 0;
+
+            SendInput((uint)enterInputs.Length, enterInputs, Marshal.SizeOf(typeof(INPUT)));
+            Console.WriteLine("Enter送信完了");
         }
 
         static void SendTextWithPostMessage(IntPtr hWnd,string text)
