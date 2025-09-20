@@ -552,7 +552,7 @@ namespace LibReader
         //inputversion
         static void SendTextWithSendInput(IntPtr hWnd,string text)
         {
-            //うまく動作しないため、いったん保留(この関数は使っていない)
+            //PostMessageだとRDPに送れないため、こちらに変更 2025/9/18
             SetForegroundWindow(hWnd);
             Thread.Sleep(500);
 
@@ -605,18 +605,20 @@ namespace LibReader
             INPUT[] enterInputs = new INPUT[2];
 
             // KeyDown
-            enterInputs[0].type = 1; // INPUT_KEYBOARD
-            enterInputs[0].ki.wVk = (short)vkEnter;
+            enterInputs[0].type = INPUT_KEYBOARD; // INPUT_KEYBOARD
+            //enterInputs[0].ki.wVk = (short)vkEnter;
+            enterInputs[0].ki.wVk = 0;
             enterInputs[0].ki.wScan = (short)scanEnter;
-            enterInputs[0].ki.dwFlags = KEYEVENTF_EXTENDEDKEY; // スキャンコード指定
+            enterInputs[0].ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_EXTENDEDKEY; // スキャンコード指定
             enterInputs[0].ki.time = 0;
             enterInputs[0].ki.dwExtraInfo = 0;
 
             // KeyUp
-            enterInputs[1].type = 1; // INPUT_KEYBOARD
-            enterInputs[1].ki.wVk = (short)vkEnter;
+            enterInputs[1].type = INPUT_KEYBOARD; // INPUT_KEYBOARD
+            //enterInputs[1].ki.wVk = (short)vkEnter;
+            enterInputs[1].ki.wVk = 0;
             enterInputs[1].ki.wScan = (short)scanEnter;
-            enterInputs[1].ki.dwFlags = KEYEVENTF_EXTENDEDKEY| KEYEVENTF_KEYUP;
+            enterInputs[1].ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP;
             enterInputs[1].ki.time = 0;
             enterInputs[1].ki.dwExtraInfo = 0;
 
